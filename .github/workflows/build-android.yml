@@ -48,32 +48,35 @@ jobs:
       - name: Setup OpenSSL for Android
         run: |
           sudo apt-get install -y pkg-config libssl-dev make
-          
           export ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.0.11902837
           export TOOLCHAIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64
-          
-          ln -sf $TOOLCHAIN/bin/aarch64-linux-android21-clang $TOOLCHAIN/bin/aarch64-linux-android-gcc
-          ln -sf $TOOLCHAIN/bin/armv7a-linux-androideabi21-clang $TOOLCHAIN/bin/arm-linux-androideabi-gcc
-          
           export PATH=$TOOLCHAIN/bin:$PATH
           
           git clone https://github.com/openssl/openssl.git --depth 1 --branch openssl-3.0 /tmp/openssl-src
-          
-          # aarch64 빌드
           cd /tmp/openssl-src
-          ./Configure android-arm64 --prefix=/tmp/openssl-arm64 -D__ANDROID_API__=21 \
-            CC=aarch64-linux-android21-clang CXX=aarch64-linux-android21-clang++ \
-            AR=llvm-ar RANLIB=llvm-ranlib
-          make -j4
-          make install_sw
           
-          # armv7 빌드
+          # aarch64
+          ./Configure android-arm64 --prefix=/tmp/openssl-arm64 -D__ANDROID_API__=21 \
+            CC=aarch64-linux-android21-clang AR=llvm-ar RANLIB=llvm-ranlib
+          make -j4 && make install_sw
+          
+          # armv7
           make clean
           ./Configure android-arm --prefix=/tmp/openssl-arm -D__ANDROID_API__=21 \
-            CC=armv7a-linux-androideabi21-clang CXX=armv7a-linux-androideabi21-clang++ \
-            AR=llvm-ar RANLIB=llvm-ranlib
-          make -j4
-          make install_sw
+            CC=armv7a-linux-androideabi21-clang AR=llvm-ar RANLIB=llvm-ranlib
+          make -j4 && make install_sw
+          
+          # x86
+          make clean
+          ./Configure android-x86 --prefix=/tmp/openssl-x86 -D__ANDROID_API__=21 \
+            CC=i686-linux-android21-clang AR=llvm-ar RANLIB=llvm-ranlib
+          make -j4 && make install_sw
+          
+          # x86_64
+          make clean
+          ./Configure android-x86_64 --prefix=/tmp/openssl-x86_64 -D__ANDROID_API__=21 \
+            CC=x86_64-linux-android21-clang AR=llvm-ar RANLIB=llvm-ranlib
+          make -j4 && make install_sw
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
       
@@ -82,11 +85,17 @@ jobs:
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
           AARCH64_LINUX_ANDROID_OPENSSL_DIR: /tmp/openssl-arm64
-          AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: /tmp/openssl-arm64/include
           AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR: /tmp/openssl-arm64/lib
+          AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: /tmp/openssl-arm64/include
           ARMV7_LINUX_ANDROIDEABI_OPENSSL_DIR: /tmp/openssl-arm
-          ARMV7_LINUX_ANDROIDEABI_OPENSSL_INCLUDE_DIR: /tmp/openssl-arm/include
           ARMV7_LINUX_ANDROIDEABI_OPENSSL_LIB_DIR: /tmp/openssl-arm/lib
+          ARMV7_LINUX_ANDROIDEABI_OPENSSL_INCLUDE_DIR: /tmp/openssl-arm/include
+          I686_LINUX_ANDROID_OPENSSL_DIR: /tmp/openssl-x86
+          I686_LINUX_ANDROID_OPENSSL_LIB_DIR: /tmp/openssl-x86/lib
+          I686_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: /tmp/openssl-x86/include
+          X86_64_LINUX_ANDROID_OPENSSL_DIR: /tmp/openssl-x86_64
+          X86_64_LINUX_ANDROID_OPENSSL_LIB_DIR: /tmp/openssl-x86_64/lib
+          X86_64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: /tmp/openssl-x86_64/include        
           
       - name: Upload APK
         uses: actions/upload-artifact@v4
