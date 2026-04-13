@@ -57,7 +57,16 @@ export async function loadData() {
         try {
             if (isTauri) {
                 LoadingStatusState.text = "Checking Files..."
-                appWindow.maximize()
+                LoadingStatusState.text = "Checking Files..."
+    // Android에서는 maximize 불필요
+    const { platform } = await import('@tauri-apps/plugin-os')
+    const os = await platform().catch(() => 'unknown')
+    const isDesktop = !['android', 'ios'].includes(os)
+    
+    if (isDesktop) {
+        appWindow.maximize()
+    }
+
                 if (!await exists('', { baseDir: BaseDirectory.AppData })) {
                     await mkdir('', { baseDir: BaseDirectory.AppData })
                 }
@@ -114,8 +123,12 @@ export async function loadData() {
                     }
                 }
                 LoadingStatusState.text = "Checking Update..."
-                await checkRisuUpdate()
-                await changeFullscreen()
+                if (isDesktop) {
+        await checkRisuUpdate()
+    }
+    if (isDesktop) {
+        await changeFullscreen()
+    }
 
             }
             else {
