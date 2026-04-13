@@ -76,7 +76,7 @@ jobs:
           OPENSSL_DIR: /tmp/openssl-android
           AARCH64_LINUX_ANDROID_OPENSSL_DIR: /tmp/openssl-android
           AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: /tmp/openssl-android/include
-          AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR: /tmp/openssl-android/lib64
+          AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR: /tmp/openssl-android/lib
     
       - name: Upload APK
         uses: actions/upload-artifact@v4
