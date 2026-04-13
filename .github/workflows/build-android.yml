@@ -44,6 +44,16 @@ jobs:
         run: pnpm tauri android init
         env:
                 NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+
+      - name: Setup NDK toolchain path
+        run: |
+           NDK_TOOLCHAIN=${{ env.ANDROID_HOME }}/ndk/27.0.11902837/toolchains/llvm/prebuilt/linux-x86_64/bin
+           echo "$NDK_TOOLCHAIN" >> $GITHUB_PATH
+           # ranlib 심볼릭 링크 생성
+           ln -sf $NDK_TOOLCHAIN/llvm-ranlib $NDK_TOOLCHAIN/aarch64-linux-android-ranlib
+           ln -sf $NDK_TOOLCHAIN/llvm-ranlib $NDK_TOOLCHAIN/armv7a-linux-androideabi-ranlib
+           ln -sf $NDK_TOOLCHAIN/llvm-ar $NDK_TOOLCHAIN/aarch64-linux-android-ar
+           ln -sf $NDK_TOOLCHAIN/llvm-ar $NDK_TOOLCHAIN/armv7a-linux-androideabi-ar
      
       - name: Build Android APK
         run: pnpm tauri android build --apk --debug
