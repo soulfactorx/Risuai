@@ -44,12 +44,31 @@ jobs:
         run: pnpm tauri android init
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
+
+      - name: Setup OpenSSL for Android
+        run: |
+          sudo apt-get install -y pkg-config libssl-dev
+          git clone https://github.com/openssl/openssl.git --depth 1 --branch openssl-3.0 /tmp/openssl-src
+          cd /tmp/openssl-src
+          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.11902837
+          export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          ./Configure android-arm64 -D__ANDROID_API__=21 --prefix=/tmp/openssl-android
+          make -j4
+          make install_sw
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
       
       - name: Build Android APK
         run: pnpm tauri android build --apk
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.11902837
-     
+          OPENSSL_DIR: /tmp/openssl-android
+          OPENSSL_INCLUDE_DIR: /tmp/openssl-android/include
+          OPENSSL_LIB_DIR: /tmp/openssl-android/lib
+          AARCH64_LINUX_ANDROID_OPENSSL_DIR: /tmp/openssl-android
+          AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: /tmp/openssl-android/include
+          AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR: /tmp/openssl-android/lib
+    
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
