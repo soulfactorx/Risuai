@@ -47,18 +47,23 @@ jobs:
 
       - name: Setup OpenSSL for Android
         run: |
-          sudo apt-get install -y pkg-config libssl-dev
-          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.11902837
-          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
+          sudo apt-get install -y pkg-config libssl-dev make
           
-          # NDK clang을 gcc로 심볼릭 링크 (Configure 전에!)
-          ln -sf $TOOLCHAIN/bin/aarch64-linux-android21-clang $TOOLCHAIN/bin/aarch64-linux-android-gcc
-          
+          export ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.0.11902837
+          export TOOLCHAIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64
           export PATH=$TOOLCHAIN/bin:$PATH
           
           git clone https://github.com/openssl/openssl.git --depth 1 --branch openssl-3.0 /tmp/openssl-src
           cd /tmp/openssl-src
-          ./Configure android-arm64 -D__ANDROID_API__=21 --prefix=/tmp/openssl-android
+          
+          ./Configure android-arm64 \
+            --prefix=/tmp/openssl-android \
+            -D__ANDROID_API__=21 \
+            CC=aarch64-linux-android21-clang \
+            CXX=aarch64-linux-android21-clang++ \
+            AR=llvm-ar \
+            RANLIB=llvm-ranlib
+          
           make -j4
           make install_sw
         env:
