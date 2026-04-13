@@ -1,3 +1,4 @@
+import { platform } from '@tauri-apps/plugin-os'
 import { alertConfirm, alertSelect, alertWait } from "./alert";
 import { language } from "../lang";
 import {
@@ -45,6 +46,11 @@ function isUpdateReminderActive(): boolean {
 
 export async function checkRisuUpdate(){
     try {
+        // Android/iOS에서는 업데이터 건너뜀
+        const os = await platform()
+        if (os === 'android' || os === 'ios') {
+            return
+        }
         const checked = await check()     
         if(checked){
             if (isUpdateReminderActive()) {
