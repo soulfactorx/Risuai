@@ -2,6 +2,7 @@ import { Sha256 } from "@aws-crypto/sha256-js"
 import { HttpRequest } from "@smithy/protocol-http"
 import { SignatureV4 } from "@smithy/signature-v4"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
+import { isNodeServer } from "src/ts/platform"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { resolveClaudeThinkingType } from "src/ts/model/types"
 import { registerClaudeObserver } from "src/ts/observer.svelte"
@@ -575,7 +576,9 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         delete headers["x-api-key"]
     }
 
-    if(db.usePlainFetch){
+    // Local fix: node-server mode fetches directly from the browser (no proxy),
+    // so Anthropic needs this header to return CORS headers.
+    if(db.usePlainFetch || isNodeServer){
         headers['anthropic-dangerous-direct-browser-access'] = 'true'
     }
 
@@ -962,6 +965,10 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
                             }
                         }
 
+                        if(parsedData?.type === 'message_stop'){
+                            return 'stop'
+                        }
+
                         if(parsedData?.type === 'error'){
                             const errormsg:string = parsedData?.error?.message
                             if(errormsg && errormsg.toLocaleLowerCase().includes('overload') && db.antiServerOverloads){
@@ -983,29 +990,48 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
                         
                         
                 })
+                // Local fix: incremental SSE parsing (no re-splitting of the whole buffer),
+                // streaming-safe UTF-8 decoding, and no infinite retry loop on read errors / stalls.
+                const STREAM_IDLE_TIMEOUT_MS = 180000
+                const readWithIdleTimeout = () => new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+                    const t = setTimeout(() => reject(new Error(`no data received for ${STREAM_IDLE_TIMEOUT_MS / 1000}s`)), STREAM_IDLE_TIMEOUT_MS)
+                    reader.read().then((r) => { clearTimeout(t); resolve(r) }, (e) => { clearTimeout(t); reject(e) })
+                })
                 let breakWhile = false
-                let i = 0;
-                let prevText = ''
                 while(true){
+                    if(arg?.abortSignal?.aborted || breakWhile){
+                        break
+                    }
+                    let readResult: ReadableStreamReadResult<Uint8Array>
                     try {
-                        if(arg?.abortSignal?.aborted || breakWhile){
-                            break
+                        readResult = await readWithIdleTimeout()
+                    } catch (error) {
+                        if(!arg?.abortSignal?.aborted){
+                            console.error('[Claude stream] read failed:', error)
+                            text += `\n\n[Stream interrupted: ${error?.message ?? error}]`
                         }
-                        const {done, value} = await reader.read() 
-                        if(done){
-                            break
-                        }
-                        parserData += (decoder.decode(value))
-                        let parts = parserData.split('\n')
-                        for(;i<parts.length-1;i++){
-                            prevText = text
-                            if(parts?.[i]?.startsWith('data: ')){
-                                const d = await parseEvent(parts[i].slice(6))
+                        try { reader.cancel() } catch {}
+                        break
+                    }
+                    if(readResult.done){
+                        break
+                    }
+                    parserData += decoder.decode(readResult.value, { stream: true })
+                    const parts = parserData.split('\n')
+                    parserData = parts.pop() ?? ''
+                    for(const part of parts){
+                            if(part.startsWith('data: ')){
+                                const d = await parseEvent(part.slice(6))
+                                if(d === 'stop'){
+                                    breakWhile = true
+                                    try { reader.cancel() } catch {}
+                                    break
+                                }
                                 if(d === 'overload'){
                                     parserData = ''
-                                    prevText = ''
                                     text = ''
-                                    reader.cancel()
+                                    thinking = false
+                                    try { reader.cancel() } catch {}
                                     const res = await fetchNative(replacerURL, {
                                         body: JSON.stringify(body),
                                         headers: headers,
@@ -1027,17 +1053,14 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
                                     break
                                 }
                             }
-                        }
-                        i--;
-                        text = prevText
-
-                        controller.enqueue({
-                            "0": text
-                        })
-
-                    } catch (error) {
-                        await sleep(1)
                     }
+
+                    if(breakWhile && text === ''){
+                        break
+                    }
+                    controller.enqueue({
+                        "0": text
+                    })
                 }
                 if(thinking){
                     text += "</Thoughts>\n\n"
