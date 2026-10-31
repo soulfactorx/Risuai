@@ -2,6 +2,62 @@ import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, ClaudeParameters, type 
 
 export const AnthropicModels: LLMModel[] = [
 
+    // Claude 5.5 (local addition)
+    // - Manual thinking budgets return 400 -> no claudeThinking flag (budget falls back to adaptive)
+    // - Opus/Sonnet 5.5 reject thinking:disabled -> no claudeThinkingOnByDefault, so "off" omits the field
+    // - Sampling params (temperature/top_p/top_k) and prefill error -> parameters: [], no hasPrefill
+    {
+        name: "Claude 5.5 Opus",
+        id: 'claude-opus-5-5',
+        shortName: "5.5 Opus",
+        provider: LLMProvider.Anthropic,
+        format: LLMFormat.Anthropic,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFirstSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.claudeAdaptiveThinking,
+            LLMFlags.claudeXHighEffort
+        ],
+        parameters: [],
+        tokenizer: LLMTokenizer.Claude,
+        recommended: true
+    },
+    {
+        name: "Claude 5.5 Sonnet",
+        id: 'claude-sonnet-5-5',
+        shortName: "5.5 Sonnet",
+        provider: LLMProvider.Anthropic,
+        format: LLMFormat.Anthropic,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFirstSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.claudeAdaptiveThinking,
+            LLMFlags.claudeXHighEffort
+        ],
+        parameters: [],
+        tokenizer: LLMTokenizer.Claude,
+        recommended: true
+    },
+    {
+        name: "Claude 5.5 Haiku",
+        id: 'claude-haiku-5-5',
+        shortName: "5.5 Haiku",
+        provider: LLMProvider.Anthropic,
+        format: LLMFormat.Anthropic,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFirstSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.claudeAdaptiveThinking,
+            LLMFlags.claudeThinkingOnByDefault
+        ],
+        parameters: [],
+        tokenizer: LLMTokenizer.Claude,
+        recommended: true
+    },
+
     {
         name: "Claude 5 Opus",
         id: 'claude-opus-5',
